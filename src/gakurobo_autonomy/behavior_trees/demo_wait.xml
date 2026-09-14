@@ -1,0 +1,10 @@
+<?xml version="1.0"?>
+<root main_tree_to_execute="MainTree">
+  <BehaviorTree ID="MainTree">
+    <Sequence>
+      <LogMessage message="Mission started"/>
+      <Wait delay_ms="2000"/>
+      <LogMessage message="Mission completed"/>
+    </Sequence>
+  </BehaviorTree>
+</root>
