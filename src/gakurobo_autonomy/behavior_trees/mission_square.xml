@@ -5,19 +5,19 @@
       <LogMessage message="Starting square mission"/>
 
       <LogMessage message="Moving to corner 1: x=1.0, y=0.0"/>
-      <NavigateToPose frame_id="odom" x="1.0" y="0.0" yaw="0.0"/>
+      <NavigateToPose frame_id="world" x="1.0" y="0.0" yaw="0.0"/>
       <Wait delay_ms="1000"/>
 
       <LogMessage message="Moving to corner 2: x=1.0, y=1.0"/>
-      <NavigateToPose frame_id="odom" x="1.0" y="1.0" yaw="0.0"/>
+      <NavigateToPose frame_id="world" x="1.0" y="1.0" yaw="0.0"/>
       <Wait delay_ms="1000"/>
 
       <LogMessage message="Moving to corner 3: x=0.0, y=1.0"/>
-      <NavigateToPose frame_id="odom" x="0.0" y="1.0" yaw="0.0"/>
+      <NavigateToPose frame_id="world" x="0.0" y="1.0" yaw="0.0"/>
       <Wait delay_ms="1000"/>
 
       <LogMessage message="Returning to start: x=0.0, y=0.0"/>
-      <NavigateToPose frame_id="odom" x="0.0" y="0.0" yaw="0.0"/>
+      <NavigateToPose frame_id="world" x="0.0" y="0.0" yaw="0.0"/>
 
       <LogMessage message="Square mission completed"/>
     </Sequence>

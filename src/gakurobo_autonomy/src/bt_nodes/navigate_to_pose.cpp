@@ -43,7 +43,7 @@ BT::PortsList NavigateToPoseNode::providedPorts()
     BT::InputPort<double>(
       "yaw", 0.0, "Goal orientation yaw in radians"),
     BT::InputPort<std::string>(
-      "frame_id", std::string("odom"), "Goal coordinate frame")
+      "frame_id", std::string("world"), "Goal coordinate frame")
   };
 }
 
@@ -72,7 +72,7 @@ BT::NodeStatus NavigateToPoseNode::onStart()
     return BT::NodeStatus::FAILURE;
   }
 
-  if (!action_client_->wait_for_action_server(std::chrono::seconds(2))) {
+  if (!action_client_->wait_for_action_server(std::chrono::seconds(15))) {
     RCLCPP_ERROR(node_->get_logger(), "NavigateToPose action server is not available.");
     return BT::NodeStatus::FAILURE;
   }

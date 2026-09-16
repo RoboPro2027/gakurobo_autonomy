@@ -3,11 +3,11 @@
   <BehaviorTree ID="MainTree">
     <Sequence>
       <LogMessage message="Navigating to point A"/>
-      <NavigateToPose frame_id="odom" x="1.0" y="0.0" yaw="0.0"/>
+      <NavigateToPose frame_id="world" x="1.0" y="0.0" yaw="0.0"/>
       <LogMessage message="Arrived at point A"/>
       <Wait delay_ms="2000"/>
       <LogMessage message="Returning to point B"/>
-      <NavigateToPose frame_id="odom" x="0.0" y="0.0" yaw="0.0"/>
+      <NavigateToPose frame_id="world" x="0.0" y="0.0" yaw="0.0"/>
       <LogMessage message="Two-point mission completed"/>
     </Sequence>
   </BehaviorTree>
