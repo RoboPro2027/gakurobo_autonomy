@@ -7,6 +7,7 @@ endif()
 
 find_package(ament_cmake REQUIRED)
 find_package(behaviortree_cpp_v3 REQUIRED)
+find_package(diagnostic_msgs REQUIRED)
 find_package(gakurobo_motion_interfaces REQUIRED)
 find_package(nav2_msgs REQUIRED)
 find_package(rclcpp REQUIRED)
@@ -30,6 +31,7 @@ target_include_directories(
 ament_target_dependencies(
   mission_runner
   behaviortree_cpp_v3
+  diagnostic_msgs
   gakurobo_motion_interfaces
   nav2_msgs
   rclcpp

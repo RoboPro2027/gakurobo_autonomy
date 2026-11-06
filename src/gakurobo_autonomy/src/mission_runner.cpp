@@ -22,6 +22,7 @@
 #include "gakurobo_autonomy/bt_nodes/execute_motion.hpp"
 #include "gakurobo_autonomy/bt_nodes/navigate_to_pose.hpp"
 #include "gakurobo_autonomy/bt_nodes/publish_event.hpp"
+#include "gakurobo_autonomy/tree_status_publisher.hpp"
 
 class LogMessageNode : public BT::SyncActionNode
 {
@@ -162,6 +163,7 @@ int main(int argc, char ** argv)
       "ExecuteMotion", execute_motion_builder);
 
     auto tree = factory.createTreeFromFile(xml_path);
+    gakurobo_autonomy::TreeStatusPublisher status_publisher(node, tree);
 
     while (rclcpp::ok()) {
       const auto status = tree.tickRoot();
@@ -169,11 +171,13 @@ int main(int argc, char ** argv)
 
       if (status == BT::NodeStatus::SUCCESS) {
         RCLCPP_INFO(node->get_logger(), "Mission finished with SUCCESS.");
+        status_publisher.flush();
         break;
       }
 
       if (status == BT::NodeStatus::FAILURE) {
         RCLCPP_ERROR(node->get_logger(), "Mission finished with FAILURE.");
+        status_publisher.flush();
         rclcpp::shutdown();
         return 1;
       }
