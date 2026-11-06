@@ -1,0 +1,10 @@
+# Run one motion primitive of this robot. Adding a primitive must not change
+# this file: values are strings, and each primitive reads the keys it declares.
+string primitive
+string[] keys
+string[] values
+---
+bool success
+string failure_reason
+---
+string phase

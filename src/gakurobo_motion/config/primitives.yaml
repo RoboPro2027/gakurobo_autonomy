@@ -1,0 +1,3 @@
+# 基本動作の一覧。module:Class を足すと motion_server で使えるようになる
+primitives:
+  delay: gakurobo_motion.primitives.delay:Delay

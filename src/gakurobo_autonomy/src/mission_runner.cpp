@@ -19,6 +19,7 @@
 #include "behaviortree_cpp_v3/action_node.h"
 #include "behaviortree_cpp_v3/bt_factory.h"
 #include "rclcpp/rclcpp.hpp"
+#include "gakurobo_autonomy/bt_nodes/execute_motion.hpp"
 #include "gakurobo_autonomy/bt_nodes/navigate_to_pose.hpp"
 #include "gakurobo_autonomy/bt_nodes/publish_event.hpp"
 
@@ -147,6 +148,18 @@ int main(int argc, char ** argv)
 
     factory.registerBuilder<gakurobo_autonomy::PublishEventNode>(
       "PublishEvent", publish_event_builder);
+
+    BT::NodeBuilder execute_motion_builder =
+      [node](
+      const std::string & name,
+      const BT::NodeConfiguration & config)
+      {
+        return std::make_unique<gakurobo_autonomy::ExecuteMotionNode>(
+          name, config, node);
+      };
+
+    factory.registerBuilder<gakurobo_autonomy::ExecuteMotionNode>(
+      "ExecuteMotion", execute_motion_builder);
 
     auto tree = factory.createTreeFromFile(xml_path);
 

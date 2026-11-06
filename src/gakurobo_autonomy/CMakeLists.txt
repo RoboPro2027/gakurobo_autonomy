@@ -7,6 +7,7 @@ endif()
 
 find_package(ament_cmake REQUIRED)
 find_package(behaviortree_cpp_v3 REQUIRED)
+find_package(gakurobo_motion_interfaces REQUIRED)
 find_package(nav2_msgs REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(rclcpp_action REQUIRED)
@@ -15,6 +16,7 @@ find_package(std_msgs REQUIRED)
 add_executable(
   mission_runner
   src/mission_runner.cpp
+  src/bt_nodes/execute_motion.cpp
   src/bt_nodes/navigate_to_pose.cpp
   src/bt_nodes/publish_event.cpp
 )
@@ -28,6 +30,7 @@ target_include_directories(
 ament_target_dependencies(
   mission_runner
   behaviortree_cpp_v3
+  gakurobo_motion_interfaces
   nav2_msgs
   rclcpp
   rclcpp_action
