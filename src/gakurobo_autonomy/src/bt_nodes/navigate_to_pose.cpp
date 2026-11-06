@@ -30,7 +30,7 @@ NavigateToPoseNode::NavigateToPoseNode(
   node_(node)
 {
   action_client_ = rclcpp_action::create_client<NavigateToPose>(
-    node_, "/navigate_to_pose");
+    node_, "navigate_to_pose");
 }
 
 BT::PortsList NavigateToPoseNode::providedPorts()
