@@ -11,6 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+#include <utility>
 #include <chrono>
 #include <memory>
 #include <string>
@@ -59,8 +60,10 @@ class WaitNode : public BT::StatefulActionNode
 public:
   WaitNode(
     const std::string & name,
-    const BT::NodeConfiguration & config)
-  : BT::StatefulActionNode(name, config)
+    const BT::NodeConfiguration & config,
+    rclcpp::Clock::SharedPtr clock)
+  : BT::StatefulActionNode(name, config),
+    clock_(std::move(clock))
   {
   }
 
@@ -79,8 +82,8 @@ public:
       throw BT::RuntimeError("Wait requires input port: ", delay_ms.error());
     }
 
-    deadline_ = std::chrono::steady_clock::now() +
-      std::chrono::milliseconds(delay_ms.value());
+    deadline_ = clock_->now() +
+      rclcpp::Duration(std::chrono::milliseconds(delay_ms.value()));
 
     RCLCPP_INFO(
       rclcpp::get_logger("mission_runner"),
@@ -90,7 +93,7 @@ public:
 
   BT::NodeStatus onRunning() override
   {
-    if (std::chrono::steady_clock::now() >= deadline_) {
+    if (clock_->now() >= deadline_) {
       return BT::NodeStatus::SUCCESS;
     }
     return BT::NodeStatus::RUNNING;
@@ -102,7 +105,8 @@ public:
   }
 
 private:
-  std::chrono::steady_clock::time_point deadline_;
+  rclcpp::Clock::SharedPtr clock_;
+  rclcpp::Time deadline_;
 };
 
 int main(int argc, char ** argv)
@@ -124,7 +128,12 @@ int main(int argc, char ** argv)
   try {
     BT::BehaviorTreeFactory factory;
     factory.registerNodeType<LogMessageNode>("LogMessage");
-    factory.registerNodeType<WaitNode>("Wait");
+    factory.registerBuilder<WaitNode>(
+      "Wait",
+      [clock = node->get_clock()](
+        const std::string & name, const BT::NodeConfiguration & config) {
+        return std::make_unique<WaitNode>(name, config, clock);
+      });
 
     BT::NodeBuilder navigate_builder =
       [node](

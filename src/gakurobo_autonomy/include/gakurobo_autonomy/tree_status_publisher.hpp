@@ -34,7 +34,7 @@ public:
   TreeStatusPublisher(const rclcpp::Node::SharedPtr & node, const BT::Tree & tree)
   : BT::StatusChangeLogger(tree.rootNode()),
     publisher_(node->create_publisher<diagnostic_msgs::msg::KeyValue>(
-        "tree_status", rclcpp::QoS(100).reliable()))
+        "tree_status", rclcpp::QoS(100).reliable().transient_local()))
   {
     enableTransitionToIdle(false);
   }
