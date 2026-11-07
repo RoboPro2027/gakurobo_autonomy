@@ -22,6 +22,15 @@
 namespace gakurobo_autonomy
 {
 
+namespace
+{
+// Right after a runner starts, Nav2 may not have discovered it yet and then drops
+// the goal with "client will not receive response". Sending again only replaces
+// the goal with the same pose, so it is safe.
+constexpr auto GOAL_RESPONSE_TIMEOUT = std::chrono::seconds(2);
+constexpr int MAX_GOAL_ATTEMPTS = 5;
+}  // namespace
+
 NavigateToPoseNode::NavigateToPoseNode(
   const std::string & name,
   const BT::NodeConfiguration & config,
@@ -77,19 +86,32 @@ BT::NodeStatus NavigateToPoseNode::onStart()
     return BT::NodeStatus::FAILURE;
   }
 
-  NavigateToPose::Goal goal;
-  goal.pose.header.stamp = node_->now();
-  goal.pose.header.frame_id = frame_id.value();
-  goal.pose.pose.position.x = x.value();
-  goal.pose.pose.position.y = y.value();
-  goal.pose.pose.position.z = 0.0;
+  goal_ = NavigateToPose::Goal();
+  goal_.pose.header.stamp = node_->now();
+  goal_.pose.header.frame_id = frame_id.value();
+  goal_.pose.pose.position.x = x.value();
+  goal_.pose.pose.position.y = y.value();
+  goal_.pose.pose.position.z = 0.0;
 
   const double half_yaw = yaw.value() * 0.5;
-  goal.pose.pose.orientation.x = 0.0;
-  goal.pose.pose.orientation.y = 0.0;
-  goal.pose.pose.orientation.z = std::sin(half_yaw);
-  goal.pose.pose.orientation.w = std::cos(half_yaw);
+  goal_.pose.pose.orientation.x = 0.0;
+  goal_.pose.pose.orientation.y = 0.0;
+  goal_.pose.pose.orientation.z = std::sin(half_yaw);
+  goal_.pose.pose.orientation.w = std::cos(half_yaw);
 
+  RCLCPP_INFO(
+    node_->get_logger(),
+    "Sending NavigateToPose goal: frame=%s x=%.3f y=%.3f yaw=%.3f",
+    frame_id.value().c_str(), x.value(), y.value(), yaw.value());
+
+  goal_attempts_ = 0;
+  sendGoal();
+  state_ = State::WAITING_FOR_GOAL_RESPONSE;
+  return BT::NodeStatus::RUNNING;
+}
+
+void NavigateToPoseNode::sendGoal()
+{
   rclcpp_action::Client<NavigateToPose>::SendGoalOptions options;
   options.feedback_callback =
     [this](
@@ -103,13 +125,23 @@ BT::NodeStatus NavigateToPoseNode::onStart()
         feedback->number_of_recoveries);
     };
 
-  RCLCPP_INFO(
-    node_->get_logger(),
-    "Sending NavigateToPose goal: frame=%s x=%.3f y=%.3f yaw=%.3f",
-    frame_id.value().c_str(), x.value(), y.value(), yaw.value());
+  ++goal_attempts_;
+  goal_sent_at_ = std::chrono::steady_clock::now();
+  goal_handle_future_ = action_client_->async_send_goal(goal_, options);
+}
 
-  goal_handle_future_ = action_client_->async_send_goal(goal, options);
-  state_ = State::WAITING_FOR_GOAL_RESPONSE;
+BT::NodeStatus NavigateToPoseNode::resendIfUnanswered()
+{
+  if (std::chrono::steady_clock::now() - goal_sent_at_ < GOAL_RESPONSE_TIMEOUT) {
+    return BT::NodeStatus::RUNNING;
+  }
+  if (goal_attempts_ >= MAX_GOAL_ATTEMPTS) {
+    RCLCPP_ERROR(node_->get_logger(), "NavigateToPose goal got no response.");
+    state_ = State::IDLE;
+    return BT::NodeStatus::FAILURE;
+  }
+  RCLCPP_WARN(node_->get_logger(), "NavigateToPose goal got no response. Sending it again.");
+  sendGoal();
   return BT::NodeStatus::RUNNING;
 }
 
@@ -119,7 +151,7 @@ BT::NodeStatus NavigateToPoseNode::onRunning()
 
   if (state_ == State::WAITING_FOR_GOAL_RESPONSE) {
     if (goal_handle_future_.wait_for(0s) != std::future_status::ready) {
-      return BT::NodeStatus::RUNNING;
+      return resendIfUnanswered();
     }
 
     goal_handle_ = goal_handle_future_.get();

@@ -174,9 +174,14 @@ int main(int argc, char ** argv)
     auto tree = factory.createTreeFromFile(xml_path);
     gakurobo_autonomy::TreeStatusPublisher status_publisher(node, tree);
 
+    rclcpp::executors::SingleThreadedExecutor executor;
+    executor.add_node(node);
+
     while (rclcpp::ok()) {
       const auto status = tree.tickRoot();
-      rclcpp::spin_some(node);
+      // An action client takes feedback before goal responses, and spin_some takes
+      // one at a time, so a goal response would wait until the feedback stops.
+      executor.spin_all(std::chrono::milliseconds(5));
 
       if (status == BT::NodeStatus::SUCCESS) {
         RCLCPP_INFO(node->get_logger(), "Mission finished with SUCCESS.");

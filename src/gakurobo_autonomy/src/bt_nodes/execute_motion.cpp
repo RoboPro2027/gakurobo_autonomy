@@ -20,6 +20,13 @@
 namespace gakurobo_autonomy
 {
 
+namespace
+{
+// Unlike a pose, a primitive must not run twice: an attach that already happened
+// would fail the second time. So a lost response ends the Mission instead.
+constexpr auto GOAL_RESPONSE_TIMEOUT = std::chrono::seconds(10);
+}  // namespace
+
 ExecuteMotionNode::ExecuteMotionNode(
   const std::string & name,
   const BT::NodeConfiguration & config,
@@ -73,6 +80,7 @@ BT::NodeStatus ExecuteMotionNode::onStart()
 
   primitive_ = goal.primitive;
   RCLCPP_INFO(node_->get_logger(), "Sending motion primitive: %s", primitive_.c_str());
+  goal_sent_at_ = std::chrono::steady_clock::now();
   goal_handle_future_ = action_client_->async_send_goal(goal);
   state_ = State::WAITING_FOR_GOAL_RESPONSE;
   return BT::NodeStatus::RUNNING;
@@ -84,7 +92,13 @@ BT::NodeStatus ExecuteMotionNode::onRunning()
 
   if (state_ == State::WAITING_FOR_GOAL_RESPONSE) {
     if (goal_handle_future_.wait_for(0s) != std::future_status::ready) {
-      return BT::NodeStatus::RUNNING;
+      if (std::chrono::steady_clock::now() - goal_sent_at_ < GOAL_RESPONSE_TIMEOUT) {
+        return BT::NodeStatus::RUNNING;
+      }
+      RCLCPP_ERROR(
+        node_->get_logger(), "Motion primitive got no response: %s", primitive_.c_str());
+      state_ = State::IDLE;
+      return BT::NodeStatus::FAILURE;
     }
     goal_handle_ = goal_handle_future_.get();
     if (!goal_handle_) {

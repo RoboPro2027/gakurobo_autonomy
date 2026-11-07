@@ -14,6 +14,7 @@
 #ifndef GAKUROBO_AUTONOMY__BT_NODES__EXECUTE_MOTION_HPP_
 #define GAKUROBO_AUTONOMY__BT_NODES__EXECUTE_MOTION_HPP_
 
+#include <chrono>
 #include <future>
 #include <memory>
 #include <string>
@@ -57,6 +58,7 @@ private:
   rclcpp_action::Client<ExecuteMotion>::SharedPtr action_client_;
   State state_{State::IDLE};
   std::string primitive_;
+  std::chrono::steady_clock::time_point goal_sent_at_;
 
   std::shared_future<GoalHandle::SharedPtr> goal_handle_future_;
   std::shared_future<GoalHandle::WrappedResult> result_future_;
