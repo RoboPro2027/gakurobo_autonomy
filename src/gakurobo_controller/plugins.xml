@@ -1,0 +1,5 @@
+<library path="gakurobo_arrival_controller">
+  <class type="gakurobo_controller::ArrivalController" base_class_type="nav2_core::Controller">
+    <description>Follows with a primary controller, arrives by position control, escapes when stuck.</description>
+  </class>
+</library>
