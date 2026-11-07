@@ -66,7 +66,7 @@ BT::NodeStatus ExecuteMotionNode::onStart()
     goal.values.push_back(item.substr(separator + 1));
   }
 
-  if (!action_client_->wait_for_action_server(std::chrono::seconds(15))) {
+  if (!action_client_->wait_for_action_server(std::chrono::seconds(60))) {
     RCLCPP_ERROR(node_->get_logger(), "ExecuteMotion action server is not available.");
     return BT::NodeStatus::FAILURE;
   }

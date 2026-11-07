@@ -72,7 +72,7 @@ BT::NodeStatus NavigateToPoseNode::onStart()
     return BT::NodeStatus::FAILURE;
   }
 
-  if (!action_client_->wait_for_action_server(std::chrono::seconds(15))) {
+  if (!action_client_->wait_for_action_server(std::chrono::seconds(60))) {
     RCLCPP_ERROR(node_->get_logger(), "NavigateToPose action server is not available.");
     return BT::NodeStatus::FAILURE;
   }
