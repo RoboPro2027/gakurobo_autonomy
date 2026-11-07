@@ -61,6 +61,7 @@ private:
   NavigateToPose::Goal goal_;
   std::chrono::steady_clock::time_point goal_sent_at_;
   int goal_attempts_{0};
+  rclcpp::Time leg_started_;
 
   std::shared_future<GoalHandle::SharedPtr> goal_handle_future_;
   std::shared_future<GoalHandle::WrappedResult> result_future_;

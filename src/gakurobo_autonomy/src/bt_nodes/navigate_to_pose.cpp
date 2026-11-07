@@ -29,6 +29,9 @@ namespace
 // the goal with the same pose, so it is safe.
 constexpr auto GOAL_RESPONSE_TIMEOUT = std::chrono::seconds(2);
 constexpr int MAX_GOAL_ATTEMPTS = 5;
+// A robot that keeps moving a little never fails Nav2's progress check, so a goal it
+// cannot finish would run until the whole Run times out. Counted on the node clock.
+constexpr double LEG_TIMEOUT_S = 90.0;
 }  // namespace
 
 NavigateToPoseNode::NavigateToPoseNode(
@@ -105,6 +108,7 @@ BT::NodeStatus NavigateToPoseNode::onStart()
     frame_id.value().c_str(), x.value(), y.value(), yaw.value());
 
   goal_attempts_ = 0;
+  leg_started_ = node_->now();
   sendGoal();
   state_ = State::WAITING_FOR_GOAL_RESPONSE;
   return BT::NodeStatus::RUNNING;
@@ -169,7 +173,19 @@ BT::NodeStatus NavigateToPoseNode::onRunning()
 
   if (state_ == State::WAITING_FOR_RESULT) {
     if (result_future_.wait_for(0s) != std::future_status::ready) {
-      return BT::NodeStatus::RUNNING;
+      const auto now = node_->now();
+      // The node clock reads 0 until the first /clock arrives.
+      if (leg_started_.nanoseconds() == 0) {
+        leg_started_ = now;
+      }
+      if ((now - leg_started_).seconds() < LEG_TIMEOUT_S) {
+        return BT::NodeStatus::RUNNING;
+      }
+      RCLCPP_ERROR(node_->get_logger(), "NavigateToPose did not arrive in time.");
+      action_client_->async_cancel_goal(goal_handle_);
+      goal_handle_.reset();
+      state_ = State::IDLE;
+      return BT::NodeStatus::FAILURE;
     }
 
     const auto wrapped_result = result_future_.get();
