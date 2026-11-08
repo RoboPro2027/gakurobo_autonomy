@@ -97,6 +97,9 @@ private:
   double escape_speed_{0.3};
   double escape_timeout_s_{4.0};
   double blocked_hold_s_{0.5};
+  double min_command_speed_{0.0};       // 0: no minimum. mass sets it from the Actor
+  double blocked_command_speed_{0.2};   // stuck if told at least this fast ...
+  double still_speed_{0.03};            // ... and moving slower than this
   int max_escapes_{4};
 
   Mode mode_{Mode::FOLLOW};

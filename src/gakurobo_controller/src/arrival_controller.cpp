@@ -34,8 +34,6 @@ constexpr double TRACK_SPACING_M = 0.05;
 constexpr double TRACK_LENGTH_M = 3.0;
 constexpr double ESCAPE_REACHED_M = 0.03;
 constexpr double COMMAND_LOOKAHEAD_S = 0.3;
-constexpr double BLOCKED_COMMAND_SPEED = 0.2;
-constexpr double STILL_SPEED = 0.03;
 constexpr double SAME_GOAL_M = 0.01;
 constexpr int ESCAPE_DIRECTIONS = 16;
 constexpr double ESCAPE_STEP_M = 0.1;
@@ -93,6 +91,9 @@ void ArrivalController::configure(
   escape_speed_ = parameter(prefix + "escape.speed", escape_speed_);
   escape_timeout_s_ = parameter(prefix + "escape.timeout_s", escape_timeout_s_);
   blocked_hold_s_ = parameter(prefix + "escape.blocked_hold_s", blocked_hold_s_);
+  blocked_command_speed_ = parameter(prefix + "escape.blocked_command_speed", blocked_command_speed_);
+  still_speed_ = parameter(prefix + "escape.still_speed", still_speed_);
+  min_command_speed_ = parameter(prefix + "min_command_speed", min_command_speed_);
 
   primary_ = loader_.createUniqueInstance(primary_type);
   primary_->configure(parent, name, tf, costmap_ros);
@@ -167,7 +168,7 @@ void ArrivalController::remember(const Pose2D & robot)
 bool ArrivalController::isBlocked(const Twist2D & actual)
 {
   const auto now = clock_->now();
-  if (!looksBlocked(last_command_, actual, BLOCKED_COMMAND_SPEED, STILL_SPEED)) {
+  if (!looksBlocked(last_command_, actual, blocked_command_speed_, still_speed_)) {
     blocked_since_ = rclcpp::Time(0, 0, clock_->get_clock_type());
     return false;
   }
@@ -339,6 +340,7 @@ geometry_msgs::msg::TwistStamped ArrivalController::computeVelocityCommands(
     }
   }
 
+  command = raiseToMinimum(command, min_command_speed_);
   last_command_ = command;
   geometry_msgs::msg::TwistStamped output;
   output.header.stamp = clock_->now();

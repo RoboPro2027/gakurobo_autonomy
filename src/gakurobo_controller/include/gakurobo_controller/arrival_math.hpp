@@ -127,6 +127,18 @@ inline double turnCommand(
 }
 
 // Whether the robot was told to move and is not moving.
+// A translation slower than the minimum is raised to it in the same direction; a stop stays
+// a stop. Below a few cm/s a robot only creeps: it neither stops nor makes progress.
+inline Twist2D raiseToMinimum(const Twist2D & twist, double minimum)
+{
+  const double speed = std::hypot(twist.vx, twist.vy);
+  if (speed == 0.0 || speed >= minimum) {
+    return twist;
+  }
+  const double scale = minimum / speed;
+  return Twist2D{twist.vx * scale, twist.vy * scale, twist.wz};
+}
+
 inline bool looksBlocked(
   const Twist2D & commanded, const Twist2D & actual, double command_speed, double still_speed)
 {

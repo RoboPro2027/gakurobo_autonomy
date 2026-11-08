@@ -22,6 +22,7 @@ using gakurobo_controller::approachSpeed;
 using gakurobo_controller::commandTowards;
 using gakurobo_controller::limitTranslation;
 using gakurobo_controller::looksBlocked;
+using gakurobo_controller::raiseToMinimum;
 using gakurobo_controller::Pose2D;
 using gakurobo_controller::pointTowards;
 using gakurobo_controller::remainingLength;
@@ -153,4 +154,33 @@ TEST(LooksBlocked, IsFalseWhenTheRobotFollows)
 TEST(LooksBlocked, IsFalseWhenNotToldToMove)
 {
   EXPECT_FALSE(looksBlocked(Twist2D{0.0, 0.0, 0.5}, Twist2D{0.0, 0.0, 0.0}, 0.2, 0.03));
+}
+
+TEST(RaiseToMinimum, RaisesACreepToTheMinimumInTheSameDirection)
+{
+  const auto out = raiseToMinimum(Twist2D{0.003, -0.004, 0.2}, 0.025);
+  EXPECT_NEAR(std::hypot(out.vx, out.vy), 0.025, 1e-12);
+  EXPECT_NEAR(out.vx / out.vy, 0.003 / -0.004, 1e-12);
+  EXPECT_DOUBLE_EQ(out.wz, 0.2);
+}
+
+TEST(RaiseToMinimum, KeepsAStopAndATurnOnTheSpot)
+{
+  const auto out = raiseToMinimum(Twist2D{0.0, 0.0, 0.5}, 0.025);
+  EXPECT_DOUBLE_EQ(out.vx, 0.0);
+  EXPECT_DOUBLE_EQ(out.vy, 0.0);
+  EXPECT_DOUBLE_EQ(out.wz, 0.5);
+}
+
+TEST(RaiseToMinimum, LeavesAFasterCommandAlone)
+{
+  const auto out = raiseToMinimum(Twist2D{0.3, 0.1, 0.0}, 0.025);
+  EXPECT_DOUBLE_EQ(out.vx, 0.3);
+  EXPECT_DOUBLE_EQ(out.vy, 0.1);
+}
+
+TEST(RaiseToMinimum, DoesNothingWithoutAMinimum)
+{
+  const auto out = raiseToMinimum(Twist2D{0.003, 0.0, 0.0}, 0.0);
+  EXPECT_DOUBLE_EQ(out.vx, 0.003);
 }
