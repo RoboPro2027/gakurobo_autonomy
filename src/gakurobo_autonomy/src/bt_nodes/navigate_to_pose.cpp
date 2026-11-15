@@ -32,6 +32,18 @@ constexpr int MAX_GOAL_ATTEMPTS = 5;
 // A robot that keeps moving a little never fails Nav2's progress check, so a goal it
 // cannot finish would run until the whole Run times out. Counted on the node clock.
 constexpr double LEG_TIMEOUT_S = 90.0;
+// Nav2's ControllerSelector reads the name it was last sent. The BT starts a moment after the goal
+// is accepted, so the name is sent first and given this long to arrive.
+constexpr auto SELECTOR_SETTLE = std::chrono::milliseconds(300);
+constexpr char DEFAULT_CONTROLLER[] = "FollowPath";
+
+// The name last sent. A runner drives one robot, so one name is enough. Waiting is only needed
+// when the name changes; every other move starts at once, as before.
+std::string & last_controller()
+{
+  static std::string name = DEFAULT_CONTROLLER;
+  return name;
+}
 }  // namespace
 
 NavigateToPoseNode::NavigateToPoseNode(
@@ -43,6 +55,9 @@ NavigateToPoseNode::NavigateToPoseNode(
 {
   action_client_ = rclcpp_action::create_client<NavigateToPose>(
     node_, "navigate_to_pose");
+  // Same QoS as the ControllerSelector subscription (a late joiner still gets the last name).
+  controller_selector_ = node_->create_publisher<std_msgs::msg::String>(
+    "controller_selector", rclcpp::QoS(1).transient_local().reliable());
 }
 
 BT::PortsList NavigateToPoseNode::providedPorts()
@@ -55,7 +70,10 @@ BT::PortsList NavigateToPoseNode::providedPorts()
     BT::InputPort<double>(
       "yaw", 0.0, "Goal orientation yaw in radians"),
     BT::InputPort<std::string>(
-      "frame_id", std::string("world"), "Goal coordinate frame")
+      "frame_id", std::string("world"), "Goal coordinate frame"),
+    BT::InputPort<std::string>(
+      "controller", std::string(""),
+      "Nav2 controller plugin for this move (empty: the robot's own, FollowPath)")
   };
 }
 
@@ -107,10 +125,24 @@ BT::NodeStatus NavigateToPoseNode::onStart()
     "Sending NavigateToPose goal: frame=%s x=%.3f y=%.3f yaw=%.3f",
     frame_id.value().c_str(), x.value(), y.value(), yaw.value());
 
+  // Every move names its controller, so a move without one returns to the robot's own after a
+  // move that used a profile.
+  const auto controller = getInput<std::string>("controller");
+  std_msgs::msg::String selected;
+  selected.data = (controller && !controller.value().empty()) ? controller.value() :
+    std::string(DEFAULT_CONTROLLER);
   goal_attempts_ = 0;
   leg_started_ = node_->now();
-  sendGoal();
-  state_ = State::WAITING_FOR_GOAL_RESPONSE;
+  if (selected.data == last_controller()) {
+    sendGoal();
+    state_ = State::WAITING_FOR_GOAL_RESPONSE;
+    return BT::NodeStatus::RUNNING;
+  }
+  controller_selector_->publish(selected);
+  last_controller() = selected.data;
+  RCLCPP_INFO(node_->get_logger(), "NavigateToPose controller: %s", selected.data.c_str());
+  selector_sent_at_ = std::chrono::steady_clock::now();
+  state_ = State::WAITING_FOR_SELECTOR;
   return BT::NodeStatus::RUNNING;
 }
 
@@ -152,6 +184,15 @@ BT::NodeStatus NavigateToPoseNode::resendIfUnanswered()
 BT::NodeStatus NavigateToPoseNode::onRunning()
 {
   using namespace std::chrono_literals;
+
+  if (state_ == State::WAITING_FOR_SELECTOR) {
+    if (std::chrono::steady_clock::now() - selector_sent_at_ < SELECTOR_SETTLE) {
+      return BT::NodeStatus::RUNNING;
+    }
+    sendGoal();
+    state_ = State::WAITING_FOR_GOAL_RESPONSE;
+    return BT::NodeStatus::RUNNING;
+  }
 
   if (state_ == State::WAITING_FOR_GOAL_RESPONSE) {
     if (goal_handle_future_.wait_for(0s) != std::future_status::ready) {

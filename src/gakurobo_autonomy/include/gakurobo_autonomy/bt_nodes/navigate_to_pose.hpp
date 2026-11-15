@@ -23,6 +23,7 @@
 #include "nav2_msgs/action/navigate_to_pose.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "rclcpp_action/rclcpp_action.hpp"
+#include "std_msgs/msg/string.hpp"
 
 namespace gakurobo_autonomy
 {
@@ -48,6 +49,7 @@ private:
   enum class State
   {
     IDLE,
+    WAITING_FOR_SELECTOR,
     WAITING_FOR_GOAL_RESPONSE,
     WAITING_FOR_RESULT
   };
@@ -57,6 +59,8 @@ private:
 
   rclcpp::Node::SharedPtr node_;
   rclcpp_action::Client<NavigateToPose>::SharedPtr action_client_;
+  rclcpp::Publisher<std_msgs::msg::String>::SharedPtr controller_selector_;
+  std::chrono::steady_clock::time_point selector_sent_at_;
   State state_{State::IDLE};
   NavigateToPose::Goal goal_;
   std::chrono::steady_clock::time_point goal_sent_at_;
