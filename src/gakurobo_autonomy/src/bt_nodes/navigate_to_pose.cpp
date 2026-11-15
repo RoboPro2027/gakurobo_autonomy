@@ -36,12 +36,20 @@ constexpr double LEG_TIMEOUT_S = 90.0;
 // is accepted, so the name is sent first and given this long to arrive.
 constexpr auto SELECTOR_SETTLE = std::chrono::milliseconds(300);
 constexpr char DEFAULT_CONTROLLER[] = "FollowPath";
+constexpr char DEFAULT_PLANNER[] = "GridBased";
 
 // The name last sent. A runner drives one robot, so one name is enough. Waiting is only needed
 // when the name changes; every other move starts at once, as before.
 std::string & last_controller()
 {
   static std::string name = DEFAULT_CONTROLLER;
+  return name;
+}
+
+// The planner last sent, the same way (Nav2's PlannerSelector reads the name it was last sent).
+std::string & last_planner()
+{
+  static std::string name = DEFAULT_PLANNER;
   return name;
 }
 }  // namespace
@@ -58,6 +66,8 @@ NavigateToPoseNode::NavigateToPoseNode(
   // Same QoS as the ControllerSelector subscription (a late joiner still gets the last name).
   controller_selector_ = node_->create_publisher<std_msgs::msg::String>(
     "controller_selector", rclcpp::QoS(1).transient_local().reliable());
+  planner_selector_ = node_->create_publisher<std_msgs::msg::String>(
+    "planner_selector", rclcpp::QoS(1).transient_local().reliable());
 }
 
 BT::PortsList NavigateToPoseNode::providedPorts()
@@ -73,7 +83,10 @@ BT::PortsList NavigateToPoseNode::providedPorts()
       "frame_id", std::string("world"), "Goal coordinate frame"),
     BT::InputPort<std::string>(
       "controller", std::string(""),
-      "Nav2 controller plugin for this move (empty: the robot's own, FollowPath)")
+      "Nav2 controller plugin for this move (empty: the robot's own, FollowPath)"),
+    BT::InputPort<std::string>(
+      "planner", std::string(""),
+      "Nav2 planner plugin for this move (empty: the robot's default, GridBased)")
   };
 }
 
@@ -125,22 +138,35 @@ BT::NodeStatus NavigateToPoseNode::onStart()
     "Sending NavigateToPose goal: frame=%s x=%.3f y=%.3f yaw=%.3f",
     frame_id.value().c_str(), x.value(), y.value(), yaw.value());
 
-  // Every move names its controller, so a move without one returns to the robot's own after a
-  // move that used a profile.
+  // Every move names its controller and its planner, so a move without one returns to the robot's
+  // own after a move that used a profile.
   const auto controller = getInput<std::string>("controller");
+  const auto planner = getInput<std::string>("planner");
   std_msgs::msg::String selected;
   selected.data = (controller && !controller.value().empty()) ? controller.value() :
     std::string(DEFAULT_CONTROLLER);
+  std_msgs::msg::String chosen_planner;
+  chosen_planner.data = (planner && !planner.value().empty()) ? planner.value() :
+    std::string(DEFAULT_PLANNER);
   goal_attempts_ = 0;
   leg_started_ = node_->now();
-  if (selected.data == last_controller()) {
+  const bool controller_changed = selected.data != last_controller();
+  const bool planner_changed = chosen_planner.data != last_planner();
+  if (!controller_changed && !planner_changed) {
     sendGoal();
     state_ = State::WAITING_FOR_GOAL_RESPONSE;
     return BT::NodeStatus::RUNNING;
   }
-  controller_selector_->publish(selected);
-  last_controller() = selected.data;
-  RCLCPP_INFO(node_->get_logger(), "NavigateToPose controller: %s", selected.data.c_str());
+  if (controller_changed) {
+    controller_selector_->publish(selected);
+    last_controller() = selected.data;
+    RCLCPP_INFO(node_->get_logger(), "NavigateToPose controller: %s", selected.data.c_str());
+  }
+  if (planner_changed) {
+    planner_selector_->publish(chosen_planner);
+    last_planner() = chosen_planner.data;
+    RCLCPP_INFO(node_->get_logger(), "NavigateToPose planner: %s", chosen_planner.data.c_str());
+  }
   selector_sent_at_ = std::chrono::steady_clock::now();
   state_ = State::WAITING_FOR_SELECTOR;
   return BT::NodeStatus::RUNNING;

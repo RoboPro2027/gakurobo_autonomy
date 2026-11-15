@@ -60,6 +60,7 @@ private:
   rclcpp::Node::SharedPtr node_;
   rclcpp_action::Client<NavigateToPose>::SharedPtr action_client_;
   rclcpp::Publisher<std_msgs::msg::String>::SharedPtr controller_selector_;
+  rclcpp::Publisher<std_msgs::msg::String>::SharedPtr planner_selector_;
   std::chrono::steady_clock::time_point selector_sent_at_;
   State state_{State::IDLE};
   NavigateToPose::Goal goal_;
