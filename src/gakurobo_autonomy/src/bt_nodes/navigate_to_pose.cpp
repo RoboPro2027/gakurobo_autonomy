@@ -27,8 +27,10 @@ namespace
 // Right after a runner starts, Nav2 may not have discovered it yet and then drops
 // the goal with "client will not receive response". Sending again only replaces
 // the goal with the same pose, so it is safe.
+// On a slow or busy PC the response can take much longer: SurfacePro_02 sent the same goal five times (10 s) and
+// gave up while Nav2 had accepted it and drove on (DBG-051). The wait is 60 s in all.
 constexpr auto GOAL_RESPONSE_TIMEOUT = std::chrono::seconds(2);
-constexpr int MAX_GOAL_ATTEMPTS = 5;
+constexpr int MAX_GOAL_ATTEMPTS = 30;
 // A robot that keeps moving a little never fails Nav2's progress check, so a goal it
 // cannot finish would run until the whole Run times out. Counted on the node clock.
 constexpr double LEG_TIMEOUT_S = 90.0;
