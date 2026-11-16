@@ -10,6 +10,7 @@ cannot read the other robot.
 """
 
 import hashlib
+import json
 import math
 from pathlib import Path
 import threading
@@ -43,6 +44,7 @@ class RosRobot:
         self._lock = threading.Lock()
         node.create_subscription(Odometry, "odom", self._on_odom, 10)
         latched = QoSProfile(depth=1, durability=DurabilityPolicy.TRANSIENT_LOCAL, reliability=ReliabilityPolicy.RELIABLE)
+        self._reports = node.create_publisher(String, "intervention_events", 10)
         self._controller = node.create_publisher(String, "controller_selector", latched)
         self._planner = node.create_publisher(String, "planner_selector", latched)
         self._client = ActionClient(node, NavigateToPose, "navigate_to_pose")
@@ -91,6 +93,14 @@ class RosRobot:
 
     def log(self, message):
         self.node.get_logger().info(f"code: {message}")
+
+    def intervention(self, kind, start_s, end_s, detail=None):
+        """A block stepped in: the bag keeps when, so a comparison can leave the span out."""
+        message = self._String()
+        message.data = json.dumps({"kind": kind, "start_s": start_s, "end_s": end_s, **(detail or {})},
+                                  separators=(",", ":"))
+        self._reports.publish(message)
+        self.node.get_logger().info(f"code: intervention {message.data}")
 
     def nav_start(self, x, y, yaw, frame_id="map", controller="", planner=""):
         self.nav_cancel()

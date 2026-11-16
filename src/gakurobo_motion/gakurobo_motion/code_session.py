@@ -107,7 +107,7 @@ def _answer(message, robot, cancelled):
         elif op == "log":
             robot.log(str(args.get("message", "")))
             value = None
-        elif op in ("now", "pose", "command", "holding", "nav_start", "nav_state", "nav_cancel"):
+        elif op in ("now", "pose", "command", "holding", "nav_start", "nav_state", "nav_cancel", "intervention"):
             value = getattr(robot, op)(**args)
         else:
             return {"id": message.get("id"), "ok": False, "error": f"UNKNOWN_OP:{op}"}

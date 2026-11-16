@@ -27,6 +27,10 @@ class Robot:
     def holding(self):
         return True
 
+    def intervention(self, kind, start_s, end_s, detail=None):
+        self.interventions = getattr(self, "interventions", [])
+        self.interventions.append((kind, start_s, end_s, detail))
+
     def nav_start(self, x, y, yaw, frame_id, controller, planner):
         self.goals.append((x, y, yaw, controller, planner))
 
@@ -131,3 +135,19 @@ def test_a_rate_keeps_a_loop_on_a_clock_and_counts_the_turns_that_ran_long(tmp_p
     """)
     assert run_block(fast, {}, robot, timeout_s=20) is True
     assert "rate: 3 ticks, 3 overrun(s) at 1000 Hz" in robot.logs
+
+
+def test_a_block_reports_that_it_stepped_in_with_the_span_and_what_it_did(tmp_path):
+    robot = Robot()
+    path = block(tmp_path, """
+        def run(ctx, params):
+            ctx.intervention("guard", 0.0, rungs="planner,controller", outcome="resumed")
+            ctx.intervention("retry", 4.0, 6.5)
+            return True
+    """)
+    assert run_block(path, {}, robot, timeout_s=20) is True
+    first, second = robot.interventions
+    # end_s を書かなければ「今」(ロボットの時計)
+    assert first[0] == "guard" and first[1] == 0.0 and first[2] > 0.0
+    assert first[3] == {"rungs": "planner,controller", "outcome": "resumed"}
+    assert second == ("retry", 4.0, 6.5, {})

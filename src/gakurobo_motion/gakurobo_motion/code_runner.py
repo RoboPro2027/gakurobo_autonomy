@@ -71,6 +71,16 @@ class Context:
             self._connection.pause(step)
         return True
 
+    def intervention(self, kind, start_s, end_s=None, **detail):
+        """Say that this block stepped in, so a comparison can leave that span out (ADR-0023 of mass).
+
+        ``start_s``/``end_s`` are the robot's clock: from when the move was not going (the stall began) to when it
+        was going again (``end_s`` None: now). ``kind`` is what was done (``"controller"``, ``"planner"``, ``"realign"``,
+        ``"retry"``...); ``detail`` is kept with it (JSON values). The Run's bag records it; nothing else depends on it.
+        """
+        self.call("intervention", kind=str(kind), start_s=float(start_s),
+                  end_s=float(self.now() if end_s is None else end_s), detail=detail)
+
     def rate(self, hz):
         """A fixed-period loop on the robot's clock: ``rate = ctx.rate(10)`` then ``rate.sleep()`` each turn."""
         return Rate(self, hz)
