@@ -265,11 +265,24 @@ Twist2D ArrivalController::arrive(const Pose2D & robot)
     wrapAngle(goal_.yaw - robot.yaw), yaw_gain_, yaw_deceleration_, max_yaw_rate_);
   const Twist2D command = commandTowards(robot, goal_, speed, 0.0);
 
-  const Pose2D ahead{
-    robot.x + COMMAND_LOOKAHEAD_S * (std::cos(robot.yaw) * command.vx - std::sin(robot.yaw) * command.vy),
-    robot.y + COMMAND_LOOKAHEAD_S * (std::sin(robot.yaw) * command.vx + std::cos(robot.yaw) * command.vy),
-    robot.yaw};
-  if (isFree(robot) && !isFree(ahead)) {
+  // Where the command takes the robot over `reach` metres (never past the goal).
+  const double speed_now = std::hypot(command.vx, command.vy);
+  const double reach = lookaheadDistance(speed_now, COMMAND_LOOKAHEAD_S, distance);
+  const auto after = [&](double travel) {
+      const double ratio = speed_now > 1e-9 ? travel / speed_now : 0.0;
+      return Pose2D{
+        robot.x + ratio * (std::cos(robot.yaw) * command.vx - std::sin(robot.yaw) * command.vy),
+        robot.y + ratio * (std::sin(robot.yaw) * command.vx + std::cos(robot.yaw) * command.vy),
+        robot.yaw};
+    };
+  if (isFree(robot) && !isFree(after(reach))) {
+    // Something is in the way ahead. Do not stop dead (nothing then moves it: no escape, no progress):
+    // creep with the largest step that is still free, and stop only where no step is.
+    for (const double fraction : {0.5, 0.25, 0.1}) {
+      if (isFree(after(reach * fraction))) {
+        return Twist2D{command.vx * fraction, command.vy * fraction, turn};
+      }
+    }
     return Twist2D{0.0, 0.0, turn};
   }
   return Twist2D{command.vx, command.vy, turn};

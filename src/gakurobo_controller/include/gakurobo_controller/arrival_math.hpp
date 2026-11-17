@@ -101,6 +101,14 @@ inline Pose2D pointTowards(const Pose2D & from, const Pose2D & to, double distan
   return Pose2D{from.x + ratio * (to.x - from.x), from.y + ratio * (to.y - from.y), to.yaw};
 }
 
+// How far ahead the command is checked for a collision: where the robot would be in lookahead_s,
+// but never past the goal (it stops there). Looking past the goal stopped a robot that was a few
+// centimetres short of a goal whose own pose was free (DBG-056).
+inline double lookaheadDistance(double speed, double lookahead_s, double remaining)
+{
+  return std::min(std::abs(speed) * lookahead_s, std::max(remaining, 0.0));
+}
+
 // Scale the translation down to the speed, keeping its direction and the turn.
 inline Twist2D limitTranslation(const Twist2D & twist, double speed)
 {
