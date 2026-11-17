@@ -148,7 +148,9 @@ class RosRobot:
     def nav_cancel(self):
         with self._lock:
             handle, self._goal = self._goal, None
-        if handle not in (None, "sending") and hasattr(handle, "cancel_goal_async"):
+        # not `handle not in (None, "sending")`: that compares with ==, and rclpy's ClientGoalHandle.__eq__ reads
+        # other.goal_id, so a real handle raised AttributeError here and every second goal of a block failed
+        if handle is not None and not isinstance(handle, str) and hasattr(handle, "cancel_goal_async"):
             handle.cancel_goal_async()
         with self._lock:
             self._result = "canceled" if handle else self._result
