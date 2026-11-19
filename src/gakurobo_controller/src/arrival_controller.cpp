@@ -294,7 +294,8 @@ Twist2D ArrivalController::follow(
 {
   const auto cmd = primary_->computeVelocityCommands(pose, velocity, goal_checker);
   const double error = wrapAngle(goal_.yaw - robot.yaw);
-  const bool room_to_turn = remaining > arrival_distance_ && turnIsFree(robot, error);
+  const bool room_to_turn =
+    roomToTurn(remaining, arrival_distance_, error, HOLD_HEADING_RAD, turnIsFree(robot, error));
   const double turn = turnCommand(
     error, cmd.twist.angular.z, room_to_turn, HOLD_HEADING_RAD,
     yaw_gain_, yaw_deceleration_, max_yaw_rate_);

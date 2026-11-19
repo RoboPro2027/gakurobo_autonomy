@@ -134,6 +134,17 @@ inline double turnCommand(
          primary_turn;
 }
 
+// Whether the controller may turn the robot itself (rather than leave the turn to the primary).
+// Away from the goal it turns early when the turn is free. At the goal (within the arrival
+// distance) it must also turn when the heading is still far off: the primary has nothing left to
+// follow there and commands no turn, and the arrival mode needs the heading within `hold_error`,
+// so a robot that got there too fast to finish turning stood still for good (DBG-060).
+inline bool roomToTurn(
+  double remaining, double arrival_distance, double error, double hold_error, bool turn_is_free)
+{
+  return turn_is_free && (remaining > arrival_distance || std::abs(error) > hold_error);
+}
+
 // Whether the robot was told to move and is not moving.
 // A translation slower than the minimum is raised to it in the same direction; a stop stays
 // a stop. Below a few cm/s a robot only creeps: it neither stops nor makes progress.

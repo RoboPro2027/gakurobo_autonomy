@@ -26,6 +26,7 @@ using gakurobo_controller::raiseToMinimum;
 using gakurobo_controller::Pose2D;
 using gakurobo_controller::pointTowards;
 using gakurobo_controller::remainingLength;
+using gakurobo_controller::roomToTurn;
 using gakurobo_controller::turnCommand;
 using gakurobo_controller::Twist2D;
 
@@ -139,6 +140,29 @@ TEST(TurnCommand, TurnsEarlyWithRoomToTurn)
 TEST(TurnCommand, LeavesALargeErrorToThePrimaryWithoutRoom)
 {
   EXPECT_EQ(turnCommand(1.5, -0.7, false, 0.3, GAIN, DECELERATION, MAXIMUM), -0.7);
+}
+
+TEST(RoomToTurn, TurnsEarlyAwayFromTheGoalWhenTheTurnIsFree)
+{
+  EXPECT_TRUE(roomToTurn(0.5, 0.05, 1.5, 0.3, true));
+  EXPECT_FALSE(roomToTurn(0.5, 0.05, 1.5, 0.3, false));
+}
+
+TEST(RoomToTurn, TurnsAtTheGoalWhenTheHeadingIsStillFarOff)
+{
+  // DBG-060: arrived in position, heading 2.2 rad off. Nothing else turns the robot there.
+  EXPECT_TRUE(roomToTurn(0.02, 0.05, 2.2, 0.3, true));
+  EXPECT_TRUE(roomToTurn(0.02, 0.05, -2.2, 0.3, true));
+}
+
+TEST(RoomToTurn, NeedsNoSpecialTurnAtTheGoalWhenTheHeadingIsClose)
+{
+  EXPECT_FALSE(roomToTurn(0.02, 0.05, 0.1, 0.3, true));  // the hold in turnCommand turns it
+}
+
+TEST(RoomToTurn, DoesNotTurnAtTheGoalWithoutRoom)
+{
+  EXPECT_FALSE(roomToTurn(0.02, 0.05, 2.2, 0.3, false));
 }
 
 TEST(LooksBlocked, MeansToldToMoveAndNotMoving)
